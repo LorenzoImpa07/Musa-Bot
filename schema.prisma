@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Una playlist creata da un utente
+model Playlist {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String   // ID Discord dell'utente proprietario
+  isPublic  Boolean  @default(true) // se true, altri utenti possono suonarla con /playlists play from
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tracks    Track[]
+
+  @@unique([ownerId, name])
+  @@index([ownerId])
+}
+
+// Una traccia dentro una playlist
+model Track {
+  id         String   @id @default(cuid())
+  playlistId String
+  title      String
+  url        String
+  duration   Int      @default(0) // secondi
+  addedAt    DateTime @default(now())
+  position   Int      @default(0)
+
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  @@index([playlistId])
+}
+
+// Impostazioni per-server (volume di default, canale panel, DJ role, ecc.)
+model GuildSettings {
+  guildId       String  @id
+  defaultVolume Int     @default(80)
+  djRoleId      String?
+  panelChannelId String?
+}
+
+// Riga singola con le statistiche globali del bot (su tutti i server insieme)
+model BotStats {
+  id               String @id @default("global")
+  totalSongsPlayed Int    @default(0)
+}
