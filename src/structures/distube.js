@@ -1,5 +1,6 @@
 const { DisTube } = require('distube');
 const { YouTubePlugin } = require('@distube/youtube');
+const ffmpeg = require('ffmpeg-static');
 
 /**
  * DisTube tiene internamente una Queue per ogni guildId (Map<guildId, Queue>).
@@ -15,6 +16,9 @@ function createDisTube(client) {
     plugins: [
       new YouTubePlugin(),
     ],
+    ffmpeg: {
+      path: ffmpeg,
+    },
   });
 
   return distube;
