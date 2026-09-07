@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('libsodium-wrappers');
 const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits, Collection, Partials } = require('discord.js');
