@@ -1,5 +1,6 @@
 const { DisTube } = require('distube');
 const { YouTubePlugin } = require('@distube/youtube');
+const { YtDlpPlugin } = require('@distube/yt-dlp');
 const ffmpeg = require('ffmpeg-static');
 
 /**
@@ -15,6 +16,8 @@ function createDisTube(client) {
     savePreviousSongs: true,
     plugins: [
       new YouTubePlugin(),
+      // yt-dlp come fallback: più stabile di ytdl-core quando YouTube cambia le API
+      new YtDlpPlugin({ update: true }),
     ],
     ffmpeg: {
       path: ffmpeg,

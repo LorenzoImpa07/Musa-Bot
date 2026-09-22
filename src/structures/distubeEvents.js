@@ -7,6 +7,14 @@ const { incrementSongsPlayed, updatePresence } = require('../utils/stats');
 module.exports = function registerDistubeEvents(client) {
   const distube = client.distube;
 
+  // Log utili se l'audio non parte (FFmpeg / stream YouTube)
+  distube.on('ffmpegDebug', (debug) => {
+    console.log('[FFmpeg]', debug);
+  });
+  distube.on('debug', (message) => {
+    console.log('[DisTube]', message);
+  });
+
   distube.on('playSong', async (queue, song) => {
     const channel = queue.textChannel;
 
