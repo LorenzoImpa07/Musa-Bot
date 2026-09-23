@@ -11,11 +11,12 @@
     "db:push": "prisma db push"
   },
   "dependencies": {
-    "@discordjs/voice": "^0.17.0",
+    "@discordjs/voice": "^0.19.2",
     "@distube/youtube": "^1.0.4",
     "@distube/yt-dlp": "^2.0.1",
     "@distube/ytdl-core": "^4.15.6",
     "@prisma/client": "^5.19.1",
+    "@snazzah/davey": "^0.1.6",
     "discord.js": "^14.15.3",
     "distube": "^5.0.6",
     "dotenv": "^16.4.5",
