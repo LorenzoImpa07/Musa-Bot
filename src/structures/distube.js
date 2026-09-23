@@ -16,7 +16,7 @@ function createDisTube(client) {
     savePreviousSongs: true,
     plugins: [
       new YouTubePlugin(),
-      // yt-dlp come fallback: più stabile di ytdl-core quando YouTube cambia le API
+      // yt-dlp v2: compatibile con DisTube 5, fallback più stabile per YouTube
       new YtDlpPlugin({ update: true }),
     ],
     ffmpeg: {
