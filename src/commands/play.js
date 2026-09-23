@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { errorEmbed } = require('../utils/embeds');
 
 module.exports = {
@@ -18,10 +18,19 @@ module.exports = {
       });
     }
 
-    const permissions = voiceChannel.permissionsFor(interaction.client.user);
-    if (!permissions?.has(['Connect', 'Speak'])) {
+    const me = interaction.guild.members.me;
+    const permissions = voiceChannel.permissionsFor(me);
+    if (
+      !permissions?.has(PermissionFlagsBits.Connect) ||
+      !permissions?.has(PermissionFlagsBits.Speak)
+    ) {
       return interaction.reply({
-        embeds: [errorEmbed('Permessi insufficienti', 'Mi servono i permessi **Connetti** e **Parlare** in questo canale vocale.')],
+        embeds: [
+          errorEmbed(
+            'Permessi insufficienti',
+            'Mi servono i permessi **Connetti** e **Parlare** in questo canale vocale.',
+          ),
+        ],
         ephemeral: true,
       });
     }
@@ -30,30 +39,31 @@ module.exports = {
     await interaction.deferReply();
 
     try {
-      // Prova a entrare in vocale prima (consigliato da DisTube in caso di timeout)
-      try {
-        await interaction.client.distube.voices.join(voiceChannel);
-      } catch (joinErr) {
-        console.warn('Primo join fallito, riprovo...', joinErr?.message || joinErr);
-        await new Promise((r) => setTimeout(r, 1500));
-        await interaction.client.distube.voices.join(voiceChannel);
-      }
-
+      // DisTube gestisce da solo il join; non fare un join separato (raddoppia il timeout)
       await interaction.client.distube.play(voiceChannel, query, {
         member: interaction.member,
         textChannel: interaction.channel,
       });
-      await interaction.deleteReply().catch(() => {});
+      // Risposta immediata così l'utente vede sempre qualcosa
+      await interaction.editReply({
+        embeds: [
+          {
+            color: 0x57f287,
+            title: '🔎 In cerca...',
+            description: `Sto cercando **${query}**. Il pannello di riproduzione arriverà tra poco.`,
+          },
+        ],
+      }).catch(() => {});
     } catch (err) {
-      console.error(err);
+      console.error('Play error:', err);
       const code = err?.errorCode || err?.code;
       let title = 'Impossibile riprodurre';
-      let desc = 'Controlla il link o prova con un altro termine di ricerca.';
+      let desc = err?.message || 'Controlla il link o prova con un altro termine di ricerca.';
 
-      if (code === 'VOICE_CONNECT_FAILED' || /voice channel after/i.test(String(err?.message))) {
+      if (code === 'VOICE_CONNECT_FAILED' || /voice channel after|VOICE_CONNECTION/i.test(String(err?.message))) {
         title = 'Connessione vocale fallita';
         desc =
-          'Non riesco a entrare nel canale vocale (timeout). Prova di nuovo tra qualche secondo. Se succede sempre, l\'hosting potrebbe bloccare UDP (necessario per Discord Voice).';
+          'Non riesco a entrare nel canale vocale (timeout UDP). Prova di nuovo. Se succede sempre, Railway spesso blocca/limita UDP necessario per Discord Voice: serve un host diverso (VPS).';
       } else if (code === 'VOICE_MISSING_PERMS') {
         title = 'Permessi insufficienti';
         desc = 'Mi servono **Connetti** e **Parlare** nel canale vocale.';
