@@ -1,13 +1,9 @@
 const { nowPlayingEmbed, controlsRow, volumeRow, successEmbed, errorEmbed, infoEmbed } = require('../utils/embeds');
 const { incrementSongsPlayed, updatePresence } = require('../utils/stats');
 
-// Questo file non segue il pattern name/execute standard: viene richiesto
-// direttamente da index.js dopo la creazione di client.distube, perché DisTube
-// espone i propri eventi su client.distube e non su client.
 module.exports = function registerDistubeEvents(client) {
   const distube = client.distube;
 
-  // Log utili se l'audio non parte (FFmpeg / stream YouTube)
   distube.on('ffmpegDebug', (debug) => {
     console.log('[FFmpeg]', debug);
   });
@@ -15,44 +11,71 @@ module.exports = function registerDistubeEvents(client) {
     console.log('[DisTube]', message);
   });
 
+  // DisTube v5: (error, queue, song?) — non (context, error)
+  distube.on('error', (error, queue) => {
+    console.error('DisTube error:', error?.errorCode || error?.code, error?.message || error);
+    if (error?.stack) console.error(error.stack);
+    const channel = queue?.textChannel;
+    const msg =
+      error?.errorCode === 'NO_RESULT'
+        ? 'Nessun risultato per questa ricerca.'
+        : error?.errorCode === 'NO_STREAM_URL' || error?.errorCode === 'CANNOT_GET_STREAM_URL'
+          ? 'Non riesco a ottenere lo stream audio (YouTube/yt-dlp).'
+          : error?.message || 'Non sono riuscito a riprodurre questo brano.';
+    channel?.send({ embeds: [errorEmbed('Errore di riproduzione', msg)] }).catch(() => {});
+  });
+
   distube.on('playSong', async (queue, song) => {
+    console.log('[DisTube] playSong:', song?.name, song?.url);
     const channel = queue.textChannel;
 
-    // Il contatore è globale (una riga sola nel DB, non per-server), quindi
-    // conta ogni brano che parte su QUALSIASI server dove gira il bot,
-    // ed è quello che aggiorna la scritta "Ascolta ..." sotto il nome di Musa Bot.
     const total = await incrementSongsPlayed().catch(() => null);
     if (total !== null) await updatePresence(client, total).catch(() => {});
 
     if (!channel) return;
-    const msg = await channel.send({
-      embeds: [nowPlayingEmbed(song, queue)],
-      components: [controlsRow(queue), volumeRow()],
-    }).catch(() => null);
-    queue.panelMessage = msg; // teniamo un riferimento per aggiornamenti futuri, se serve
+    const msg = await channel
+      .send({
+        embeds: [nowPlayingEmbed(song, queue)],
+        components: [controlsRow(queue), volumeRow()],
+      })
+      .catch((e) => {
+        console.error('Impossibile inviare pannello now playing:', e?.message || e);
+        return null;
+      });
+    queue.panelMessage = msg;
   });
 
   distube.on('addSong', (queue, song) => {
-    queue.textChannel?.send({
-      embeds: [successEmbed('Aggiunto alla coda', `[${song.name}](${song.url}) • \`${song.formattedDuration}\``)],
-    }).catch(() => {});
+    console.log('[DisTube] addSong:', song?.name);
+    queue.textChannel
+      ?.send({
+        embeds: [successEmbed('Aggiunto alla coda', `[${song.name}](${song.url}) • \`${song.formattedDuration}\``)],
+      })
+      .catch(() => {});
   });
 
   distube.on('finish', (queue) => {
-    queue.textChannel?.send({ embeds: [infoEmbed('🎵 Coda terminata', 'Ho finito di suonare tutti i brani. Aggiungine altri con `/play`!')] }).catch(() => {});
+    console.log('[DisTube] finish, queue empty');
+    queue.textChannel
+      ?.send({
+        embeds: [infoEmbed('🎵 Coda terminata', 'Ho finito di suonare tutti i brani. Aggiungine altri con `/play`!')],
+      })
+      .catch(() => {});
   });
 
   distube.on('disconnect', (queue) => {
-    queue.textChannel?.send({ embeds: [infoEmbed('👋 Disconnesso', 'Mi sono disconnesso dal canale vocale.')] }).catch(() => {});
+    console.log('[DisTube] disconnect');
+    queue.textChannel
+      ?.send({ embeds: [infoEmbed('👋 Disconnesso', 'Mi sono disconnesso dal canale vocale.')] })
+      .catch(() => {});
   });
 
   distube.on('empty', (queue) => {
-    queue.textChannel?.send({ embeds: [infoEmbed('📭 Canale vuoto', 'Tutti hanno lasciato il canale vocale, mi disconnetto.')] }).catch(() => {});
-  });
-
-  distube.on('error', (context, error) => {
-    console.error('DisTube error:', error);
-    const channel = context?.textChannel || context?.channel;
-    channel?.send({ embeds: [errorEmbed('Errore di riproduzione', 'Non sono riuscito a riprodurre questo brano. Riprova con un altro link o termine di ricerca.')] }).catch(() => {});
+    console.log('[DisTube] empty channel');
+    queue.textChannel
+      ?.send({
+        embeds: [infoEmbed('📭 Canale vuoto', 'Tutti hanno lasciato il canale vocale, mi disconnetto.')],
+      })
+      .catch(() => {});
   });
 };

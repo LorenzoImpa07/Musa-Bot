@@ -3,20 +3,20 @@ const { YouTubePlugin } = require('@distube/youtube');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
 const ffmpeg = require('ffmpeg-static');
 
-/**
- * DisTube tiene internamente una Queue per ogni guildId (Map<guildId, Queue>).
- * Questo è ciò che garantisce che due server diversi non si "pestino i piedi":
- * ogni coda, stato di play/pause, volume e connessione vocale è isolato per guild.
- */
 function createDisTube(client) {
   const distube = new DisTube(client, {
     emitNewSongOnly: true,
     emitAddSongWhenCreatingQueue: false,
     emitAddListWhenCreatingQueue: false,
     savePreviousSongs: true,
+    // YtDlpPlugin per ultimo (come da docs); serve binary yt-dlp scaricabile
     plugins: [
-      new YouTubePlugin(),
-      // yt-dlp v2: compatibile con DisTube 5, fallback più stabile per YouTube
+      new YouTubePlugin({
+        ytdlOptions: {
+          quality: 'highestaudio',
+          highWaterMark: 1 << 25,
+        },
+      }),
       new YtDlpPlugin({ update: true }),
     ],
     ffmpeg: {
